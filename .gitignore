@@ -1,3 +1,12 @@
 .vscode/
 .idea/
+*.cbp
 
+cmake-build-debug/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+obj/
+server
+client
