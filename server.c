@@ -4,22 +4,17 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/wait.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "err_exit.h"
-#include "defines.h"
-#include "shared_memory.h"
-#include "semaphore.h"
-#include "fifo.h"
+#include "settings.h"
+#include "board.h"
+#include "steps.h"
 
-#define DEV_COUNT 5
-#define BOARD_ROWS 10
-#define BOARD_COLS 10
-
-pid_t pids[DEV_COUNT + 1];
-
-segment board, ack_table;
+struct {
+    pid_t ack_manager;
+    pid_t devs[DEV_COUNT];
+} pids;
 
 void wait_children() {
     while(wait(NULL));
@@ -27,14 +22,15 @@ void wait_children() {
 
 // Remove IPC, allocated memory, and such
 void teardown() {
-    if(board.ptr != NULL) segment_teardown(&board);
-    if(ack_table.ptr != NULL) segment_teardown(&ack_table);
+    teardown_board();
+    teardown_steps();
 }
 
 // Kill children, wait for them to terminate, teardown, and then exit
 void die(int code) {
-    for(int i=0;i<=DEV_COUNT;i++)
-        kill(pids[i], SIGTERM);
+    for(int i=0;i<DEV_COUNT;i++)
+        kill(pids.devs[i], SIGTERM);
+    kill(pids.ack_manager, SIGTERM);
 
     wait_children();
 
@@ -53,18 +49,16 @@ int device(int i) {
 }
 
 int main(int argc, char * argv[]) {
-    board = segment_init(sizeof(int) * BOARD_ROWS * BOARD_COLS);
-    if(!board.ptr) die(1);
-    ack_table = segment_init(sizeof(int) * 100);
-    if(!ack_table.ptr) die(1);
+    init_board();
+    init_steps("./input/file_posizioni.txt");
 
     // Spawn ACK Manager
-    if(!(pids[0] = fork()))
+    if(!(pids.ack_manager = fork()))
         return ack_manager();
 
     // Spawn devices
     for(int i=0;i<DEV_COUNT;i++)
-        if(!(pids[i+1] = fork()))
+        if(!(pids.devs[i] = fork()))
             return device(i);
 
     pause();
