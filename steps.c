@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
+#include "err_exit.h"
+
 #define STEP_ROW_BYTES (DEV_COUNT * 3 + (DEV_COUNT - 1))
 #define STEP_ROW_EOL "\n"
 
@@ -16,7 +18,9 @@ void init_steps(const char* path) {
     fstat(fd, &f_stat);
 
     long steps_count = f_stat.st_size / (long) (STEP_ROW_BYTES + sizeof(STEP_ROW_EOL) - 1);
-    steps = malloc(sizeof(step) * steps_count);
+
+    try steps = malloc(sizeof(step) * steps_count)
+    catchNil("malloc steps table")
 
     char buf[STEP_ROW_BYTES];
     for (int step_i = 0; step_i < steps_count; step_i++) {
