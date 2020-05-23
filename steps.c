@@ -3,24 +3,26 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/sem.h>
 
 #include "err_exit.h"
 
 #define STEP_ROW_BYTES (DEV_COUNT * 3 + (DEV_COUNT - 1))
 #define STEP_ROW_EOL "\n"
 
+long steps_count;
 step *steps;
 
-void init_steps(const char* path) {
+void init_steps(const char *path) {
     int fd = open(path, S_IRUSR);
 
     struct stat f_stat;
     fstat(fd, &f_stat);
 
-    long steps_count = f_stat.st_size / (long) (STEP_ROW_BYTES + sizeof(STEP_ROW_EOL) - 1);
+    steps_count = f_stat.st_size / (long) (STEP_ROW_BYTES + sizeof(STEP_ROW_EOL) - 1);
 
     try steps = malloc(sizeof(step) * steps_count)
-    catchNil("malloc steps table")
+        catchNil("malloc steps table")
 
     char buf[STEP_ROW_BYTES];
     for (int step_i = 0; step_i < steps_count; step_i++) {
@@ -38,4 +40,37 @@ void init_steps(const char* path) {
 
 void teardown_steps() {
     free(steps);
+}
+
+static int id = 0;
+
+void init_mov_semaphores() {
+    id = semget(IPC_PRIVATE, 5, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+    unsigned char *initializer[DEV_COUNT] = {0};
+    semctl(id, 0, SETALL, initializer);
+}
+
+void teardown_mov_semaphores() {
+    semctl(id, 0, IPC_RMID);
+}
+
+int current_step = 0;
+
+void await_turn(int dev_i) {
+    struct sembuf op = {.sem_num = dev_i, .sem_op = -1};
+    semop(id, &op, 1);
+}
+
+void pass_turn(int dev_i) {
+    if(dev_i < DEV_COUNT - 1) {
+        struct sembuf op = {.sem_num = dev_i + 1, .sem_op = +1};
+        semop(id, &op, 1);
+    }
+    current_step++;
+}
+
+void perform_step() {
+    struct sembuf op = {.sem_num = 0, .sem_op = +1};
+    semop(id, &op, 1);
+    current_step++;
 }
