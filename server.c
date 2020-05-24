@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dev.h"
 #include "settings.h"
 #include "board.h"
 #include "steps.h"
@@ -39,22 +40,8 @@ void die(int code) {
     exit(code);
 }
 
-int ack_manager() {
-    return 0;
-}
-
-_Noreturn int device(int dev_i) {
-    while(1) {
-        in_turn(dev_i, {
-            if(current_step > 0) {
-                pos_t prev_pos = steps[current_step - 1][dev_i];
-                board_set(prev_pos, 0);
-            }
-
-            pos_t goto_pos = steps[current_step][dev_i];
-            board_set(goto_pos, getpid());
-        });
-    }
+void ack_manager() {
+    pause();
 }
 
 int main(int argc, char *argv[]) {
@@ -64,12 +51,12 @@ int main(int argc, char *argv[]) {
 
     // Spawn ACK Manager
     if (!(pids.ack_manager = fork()))
-        return ack_manager();
+        ack_manager();
 
     // Spawn devices
-    for (int i = 0; i < DEV_COUNT; i++)
-        if (!(pids.devs[i] = fork()))
-            device(i);
+    for (int dev_i = 0; dev_i < DEV_COUNT; dev_i++)
+        if (!(pids.devs[dev_i] = fork()))
+            device_loop(dev_i);
 
     for(int i=0;i<steps_count;i++) {
         printf("STEP %d\n", current_step);

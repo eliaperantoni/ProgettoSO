@@ -45,8 +45,8 @@ void teardown_steps() {
 static int id = 0;
 
 void init_mov_semaphores() {
-    id = semget(IPC_PRIVATE, 5, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-    unsigned char *initializer[DEV_COUNT] = {0};
+    id = semget(IPC_PRIVATE, DEV_COUNT + 1, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+    unsigned char *initializer[DEV_COUNT + 1] = {0};
     semctl(id, 0, SETALL, initializer);
 }
 
@@ -62,15 +62,18 @@ void await_turn(int dev_i) {
 }
 
 void pass_turn(int dev_i) {
-    if(dev_i < DEV_COUNT - 1) {
-        struct sembuf op = {.sem_num = dev_i + 1, .sem_op = +1};
-        semop(id, &op, 1);
-    }
+    struct sembuf op = {.sem_num = dev_i + 1, .sem_op = +1};
+    semop(id, &op, 1);
     current_step++;
 }
 
 void perform_step() {
     struct sembuf op = {.sem_num = 0, .sem_op = +1};
     semop(id, &op, 1);
+
+    op.sem_num = DEV_COUNT;
+    op.sem_op = -1;
+    semop(id, &op, 1);
+
     current_step++;
 }

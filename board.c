@@ -1,6 +1,6 @@
 #include "board.h"
 
-#include <stdio.h>;
+#include <stdio.h>
 #include <string.h>
 #include <sys/shm.h>
 #include <sys/stat.h>
