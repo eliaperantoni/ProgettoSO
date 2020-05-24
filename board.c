@@ -7,30 +7,30 @@
 
 #define BOARD_ROWS 10
 #define BOARD_COLS 10
-#define BOARD_BYTES sizeof(int) * BOARD_ROWS * BOARD_COLS
+#define BOARD_BYTES sizeof(pid_t) * BOARD_ROWS * BOARD_COLS
 
 static int id = 0;
-static pid_t *ptr = NULL;
+static pid_t (*board)[BOARD_ROWS][BOARD_COLS];
 
 void init_board() {
     id = shmget(IPC_PRIVATE, BOARD_BYTES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-    ptr = shmat(id, NULL, 0);
-    memset(ptr, 0, BOARD_BYTES);
+    board = shmat(id, NULL, 0);
+    memset(board, 0, BOARD_BYTES);
 }
 
 void teardown_board() {
-    shmdt(ptr);
+    shmdt(board);
     shmctl(id, IPC_RMID, NULL);
-    ptr = NULL;
+    board = NULL;
     id = 0;
 }
 
 pid_t board_get(pos_t p) {
-    return ptr[p.x + BOARD_COLS * p.y];
+    return *board[p.x][p.y];
 }
 
 void board_set(pos_t p, pid_t val) {
-    ptr[p.x + BOARD_COLS * p.y] = val;
+    *board[p.x][p.y] = val;
 }
 
 void display_board() {
