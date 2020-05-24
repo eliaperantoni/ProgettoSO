@@ -11,7 +11,7 @@ extern long steps_count;
 // Access it like `steps[step_index][device_index]`
 extern step* steps;
 
-void init_steps(const char* path);
+void init_steps(char* path);
 void teardown_steps();
 
 void init_mov_semaphores();

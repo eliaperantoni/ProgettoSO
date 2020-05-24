@@ -13,7 +13,7 @@
 long steps_count;
 step *steps;
 
-void init_steps(const char *path) {
+void init_steps(char *path) {
     int fd = open(path, S_IRUSR);
 
     struct stat f_stat;

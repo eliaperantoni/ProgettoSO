@@ -25,11 +25,11 @@ void teardown_board() {
     id = 0;
 }
 
-pid_t board_get(const pos_t p) {
+pid_t board_get(pos_t p) {
     return ptr[p.x + BOARD_COLS * p.y];
 }
 
-void board_set(const pos_t p, const pid_t val) {
+void board_set(pos_t p, pid_t val) {
     ptr[p.x + BOARD_COLS * p.y] = val;
 }
 
