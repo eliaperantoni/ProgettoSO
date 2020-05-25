@@ -58,12 +58,10 @@ int main(int argc, char *argv[]) {
         if (!(pids.devs[dev_i] = fork()))
             device_loop(dev_i);
 
-    for(int i=0;i<steps_count;i++) {
-        printf("STEP %d\n", current_step);
-        display_board();
-        printf("\n");
-
+    for(int step_i=0;step_i<steps_count;step_i++) {
+        printf("## Step %d: device positions ##########\n", step_i);
         perform_step();
+        printf("#######################################\n\n");
         sleep(2);
     }
 

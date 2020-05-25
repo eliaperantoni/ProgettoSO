@@ -3,7 +3,7 @@
 
 #pragma once
 
-/// @brief Prints the error message of the last failed
+/// @brief Prints the error msg of the last failed
 ///         system call and terminates the calling process.
 void ErrExit(char *msg);
 

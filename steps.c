@@ -64,16 +64,17 @@ void await_turn(int dev_i) {
 void pass_turn(int dev_i) {
     struct sembuf op = {.sem_num = dev_i + 1, .sem_op = +1};
     semop(id, &op, 1);
-    current_step++;
 }
 
 void perform_step() {
-    struct sembuf op = {.sem_num = 0, .sem_op = +1};
-    semop(id, &op, 1);
+    for (int i = 0; i < 2; i++) {
+        struct sembuf op = {.sem_num = 0, .sem_op = +1};
+        semop(id, &op, 1);
 
-    op.sem_num = DEV_COUNT;
-    op.sem_op = -1;
-    semop(id, &op, 1);
+        op.sem_num = DEV_COUNT;
+        op.sem_op = -1;
+        semop(id, &op, 1);
+    }
 
     current_step++;
 }
