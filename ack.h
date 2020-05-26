@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include "msg.h"
+#include "settings.h"
 
 #define ACK_TABLE_ROWS 10
 #define ACK_TABLE_BYTES sizeof(ack) * ACK_TABLE_ROWS
@@ -30,4 +31,5 @@ void teardown_feedback_queue();
 
 typedef struct {
     long message_id;
+    ack acks[DEV_COUNT];
 } feedback;

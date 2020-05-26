@@ -8,7 +8,6 @@
 #include <stdio.h>
 
 #include "ack.h"
-#include "settings.h"
 
 static int shm_id;
 static ack *ptr = NULL;
@@ -81,7 +80,7 @@ bool has_dev_received_msg(pid_t dev_pid, int msg_id) {
     return false;
 }
 
-int comparator(const void *a, const void *b) {
+static int comparator(const void *a, const void *b) {
     return ((ack *) b)->message_id - ((ack *) a)->message_id;
 }
 
@@ -124,6 +123,7 @@ _Noreturn void ack_manager_loop() {
                     feedback feedback_msg = {
                             .message_id = message_id,
                     };
+                    memcpy(feedback_msg.acks, ptr + row_i - DEV_COUNT + 1, sizeof(ack[DEV_COUNT]));
                     msgsnd(queue_id, &feedback_msg, sizeof(feedback) - sizeof(long), 0);
 
                     // Reset this row + the last 4 to empty rows
