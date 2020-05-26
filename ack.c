@@ -2,6 +2,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/sem.h>
+#include <sys/msg.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,6 +29,16 @@ void teardown_ack_table() {
     shmctl(shm_id, IPC_RMID, NULL);
 
     semctl(sem_id, 0, IPC_RMID);
+}
+
+static int queue_id;
+
+void init_feedback_queue(int key) {
+    queue_id = msgget(key, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+}
+
+void teardown_feedback_queue() {
+    msgctl(queue_id, IPC_RMID, NULL);
 }
 
 // Global vars are initialized to 0.
@@ -109,7 +120,12 @@ _Noreturn void ack_manager_loop() {
             if (ptr[row_i].message_id == message_id) {
                 streak++;
                 if (streak == DEV_COUNT) {
-                    // TODO Send message to client
+                    // Send message to client
+                    feedback feedback_msg = {
+                            .message_id = message_id,
+                    };
+                    msgsnd(queue_id, &feedback_msg, sizeof(feedback) - sizeof(long), 0);
+
                     // Reset this row + the last 4 to empty rows
                     memset(ptr + row_i - DEV_COUNT + 1, 0, sizeof(ack) * DEV_COUNT);
                 }

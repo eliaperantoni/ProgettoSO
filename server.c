@@ -28,6 +28,7 @@ void teardown() {
     teardown_steps();
     teardown_mov_semaphores();
     teardown_ack_table();
+    teardown_feedback_queue();
 }
 
 // Kill children, wait for them to terminate, teardown, and then exit
@@ -43,10 +44,16 @@ void die(int code) {
 }
 
 int main(int argc, char *argv[]) {
+    if (argc != 3) {
+        printf("Usage: server <msg_queue_key> <steps_file_path>\n");
+        return 1;
+    }
+
     init_board();
-    init_steps("./input/file_posizioni.txt");
+    init_steps(argv[2]);
     init_mov_semaphores();
     init_ack_table();
+    init_feedback_queue(atoi(argv[1]));
 
     // Spawn ACK Manager
     if (!(pids.ack_manager = fork()))
