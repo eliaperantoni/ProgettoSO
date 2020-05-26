@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "dev.h"
 #include "steps.h"
@@ -59,6 +60,8 @@ _Noreturn void device_loop(int dev_i) {
         //  2) Send messages
         //  3) Move
         await_turn(dev_i);
+
+        // 1) Receive messages
         // Keep reading messages but only alloc on heap if a message exists.
         while (1) {
             // Use stack allocated message as buffer.
@@ -76,8 +79,34 @@ _Noreturn void device_loop(int dev_i) {
             add_ack(msg_ptr);
         }
 
+        // 2) Send messages
+        for (int x = 0; x < BOARD_COLS; x++) {
+            for (int y = 0; y < BOARD_ROWS; y++) {
+                pos_t pos = {
+                        .x = x,
+                        .y = y,
+                };
 
+                pid_t target_pid;
+                // If no device there, skip cell
+                if ((target_pid = board_get(pos)) == 0 || target_pid == pid) continue;
 
+                // There is someone there, compute distance
+                double dist = sqrt(pow(current_pos.x - x, 2) + pow(current_pos.y - y, 2));
+
+                list_handle_t *iter;
+                list_for_each(iter, &messages) {
+                    msg *m = list_entry(iter, msg, list_handle);
+                    m->pid_sender = pid;
+                    if (dist <= m->max_dist) {
+                        m->pid_receiver = target_pid;
+                        send_msg(m);
+                    }
+                }
+            }
+        }
+
+        // 3) Move
         if (current_step > 0) {
             // Remove old position
             board_set(current_pos, 0);
@@ -86,11 +115,22 @@ _Noreturn void device_loop(int dev_i) {
         // Set new position
         current_pos = steps[current_step][dev_i];
         board_set(current_pos, pid);
+
         pass_turn(dev_i);
 
-        // Second scan, print status
+        // Second scan, print status and remove messages
         await_turn(dev_i);
+
         print_status();
+
+        // Remove all messages
+        list_handle_t *iter;
+        list_for_each(iter, &messages) {
+            msg *m = list_entry(iter, msg, list_handle);
+            free(m);
+        }
+        messages.next = NULL;
+
         pass_turn(dev_i);
 
         current_step++;

@@ -9,10 +9,16 @@ int main(int argc, char * argv[]) {
     char fifo_path[64];
     sprintf(fifo_path, "/tmp/dev_fifo.%d", dst_pid);
 
-    send_msg(1, "Hello World!", 1, dst_pid);
-    send_msg(2, "Hello World!", 1, dst_pid);
-    send_msg(3, "Hello World!", 1, dst_pid);
-    send_msg(4, "Hello World!", 1, dst_pid);
+    msg m = {
+            .id = 1,
+            .content = "Hello World!",
+            .pid_sender = getpid(),
+            .pid_receiver = dst_pid,
+            .max_dist = 1,
+            .list_handle = null_list_handle,
+    };
+
+    send_msg(&m);
 
     printf("SENT TO %d\n", dst_pid);
 

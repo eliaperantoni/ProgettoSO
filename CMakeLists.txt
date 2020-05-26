@@ -8,3 +8,6 @@ add_definitions(-Wall -std=gnu99)
 
 add_executable(server ${SOURCES} ${PROJECT_SOURCE_DIR}/server.c)
 add_executable(client ${SOURCES} ${PROJECT_SOURCE_DIR}/client.c)
+
+target_link_libraries(server m)
+target_link_libraries(client m)

@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
             device_loop(dev_i);
 
     for(int step_i=0;step_i<steps_count;step_i++) {
-        printf("## Step %d: device positions ##########\n", step_i);
+        printf("## Step %d: device positions ###########\n", step_i);
         perform_step();
         printf("#######################################\n\n");
         sleep(2);

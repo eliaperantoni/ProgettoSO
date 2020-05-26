@@ -6,7 +6,7 @@ typedef struct list_handle {
     struct list_handle* next;
 } list_handle_t;
 
-#define null_list_handle {NULL};
+#define null_list_handle {NULL}
 
 #define list_insert_after(base, insertee) \
     (insertee)->next = (base)->next;(base)->next = (insertee)

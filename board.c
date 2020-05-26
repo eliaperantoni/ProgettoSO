@@ -5,8 +5,6 @@
 #include <sys/shm.h>
 #include <sys/stat.h>
 
-#define BOARD_ROWS 10
-#define BOARD_COLS 10
 #define BOARD_BYTES sizeof(pid_t) * BOARD_ROWS * BOARD_COLS
 
 static int id = 0;

@@ -1,7 +1,11 @@
 #pragma once
 
 #include <unistd.h>
+
 #include "settings.h"
+
+#define BOARD_ROWS 10
+#define BOARD_COLS 10
 
 /*
           x------->
