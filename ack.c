@@ -34,7 +34,7 @@ void teardown_ack_table() {
 // We'll use this to check if a rock is free.
 ack test_ack;
 
-bool ack_is_row_free(int row_i) {
+static bool is_row_free(int row_i) {
     return memcmp(ptr + row_i, &test_ack, sizeof(ack)) == 0;
 }
 
@@ -50,7 +50,7 @@ void add_ack(msg *msg_ptr) {
     semop(sem_id, &op, 1);
 
     for (int row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
-        if (ack_is_row_free(row_i)) {
+        if (is_row_free(row_i)) {
             ptr[row_i] = new_ack;
             break;
         }
@@ -78,7 +78,7 @@ void display_ack_table() {
     printf("=== ACK TABLE =================\n");
     for (int row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
         printf("%d ", row_i);
-        if (ack_is_row_free(row_i)) {
+        if (is_row_free(row_i)) {
             printf("EMPTY\n");
         } else {
             ack *ack = ptr + row_i;
@@ -105,7 +105,7 @@ _Noreturn void ack_manager_loop() {
         int message_id = -1, streak = 0;
         // Scan rows.
         // As soon as we encounter an empty row we can stop scanning.
-        for (int row_i = 0; row_i < ACK_TABLE_ROWS && !ack_is_row_free(row_i); row_i++) {
+        for (int row_i = 0; row_i < ACK_TABLE_ROWS && !is_row_free(row_i); row_i++) {
             if (ptr[row_i].message_id == message_id) {
                 streak++;
                 if (streak == DEV_COUNT) {
