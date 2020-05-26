@@ -8,6 +8,7 @@
 #include "dev.h"
 #include "steps.h"
 #include "msg.h"
+#include "ack.h"
 
 char fifo_path[64];
 int fifo_fd;
@@ -71,7 +72,11 @@ _Noreturn void device_loop(int dev_i) {
             msg *msg_ptr = malloc(sizeof(msg));
             memcpy(msg_ptr, &msg_temp, sizeof(msg));
             list_insert_after(&messages, &msg_ptr->list_handle);
+
+            add_ack(msg_ptr);
         }
+
+
 
         if (current_step > 0) {
             // Remove old position

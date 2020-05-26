@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <time.h>
 
+#include "msg.h"
+
 #define ACK_TABLE_ROWS 100
 #define ACK_TABLE_BYTES sizeof(ack) * ACK_TABLE_ROWS
 
@@ -14,3 +16,5 @@ typedef struct {
 
 void init_ack_table();
 void teardown_ack_table();
+
+void add_ack(msg *msg_ptr);

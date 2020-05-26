@@ -11,6 +11,7 @@
 #include "settings.h"
 #include "board.h"
 #include "steps.h"
+#include "ack.h"
 
 struct {
     pid_t ack_manager;
@@ -26,6 +27,7 @@ void teardown() {
     teardown_board();
     teardown_steps();
     teardown_mov_semaphores();
+    teardown_ack_table();
 }
 
 // Kill children, wait for them to terminate, teardown, and then exit
@@ -48,6 +50,7 @@ int main(int argc, char *argv[]) {
     init_board();
     init_steps("./input/file_posizioni.txt");
     init_mov_semaphores();
+    init_ack_table();
 
     // Spawn ACK Manager
     if (!(pids.ack_manager = fork()))
