@@ -57,30 +57,12 @@ _Noreturn void device_loop(int dev_i) {
 
     while (true) {
         // First scan:
-        //  1) Receive messages
-        //  2) Send messages
+        //  1) Send messages
+        //  2) Receive messages
         //  3) Move
         await_turn(dev_i);
 
-        // 1) Receive messages
-        // Keep reading messages but only alloc on heap if a message exists.
-        while (1) {
-            // Use stack allocated message as buffer.
-            msg msg_temp;
-            // Remember that `fifo_fd` is open in non-blocking mode. Reads that happend concurrently with a write
-            // should set `errno` to `EWOULDBLOCK' or `EAGAIN` but we gangster and we don't care.
-            int br = read(fifo_fd, &msg_temp, sizeof(msg));
-            if (br < sizeof(msg)) break;
-
-            // If read is successful then malloc and copy over the buffer using `memcpy`
-            msg *msg_ptr = malloc(sizeof(msg));
-            memcpy(msg_ptr, &msg_temp, sizeof(msg));
-            list_insert_after(&messages, &msg_ptr->list_handle);
-
-            add_ack(msg_ptr);
-        }
-
-        // 2) Send messages
+        // 1) Send messages
         for (int x = 0; x < BOARD_COLS; x++) {
             for (int y = 0; y < BOARD_ROWS; y++) {
                 pos_t pos = {
@@ -107,6 +89,32 @@ _Noreturn void device_loop(int dev_i) {
             }
         }
 
+        // Remove all messages because we have already sent them
+        list_handle_t *iter;
+        list_for_each(iter, &messages) {
+            msg *m = list_entry(iter, msg, list_handle);
+            free(m);
+        }
+        messages.next = NULL;
+
+        // 2) Receive messages
+        // Keep reading messages but only alloc on heap if a message exists.
+        while (1) {
+            // Use stack allocated message as buffer.
+            msg msg_temp;
+            // Remember that `fifo_fd` is open in non-blocking mode. Reads that happend concurrently with a write
+            // should set `errno` to `EWOULDBLOCK' or `EAGAIN` but we gangster and we don't care.
+            int br = read(fifo_fd, &msg_temp, sizeof(msg));
+            if (br < sizeof(msg)) break;
+
+            // If read is successful then malloc and copy over the buffer using `memcpy`
+            msg *msg_ptr = malloc(sizeof(msg));
+            memcpy(msg_ptr, &msg_temp, sizeof(msg));
+            list_insert_after(&messages, &msg_ptr->list_handle);
+
+            add_ack(msg_ptr);
+        }
+
         // 3) Move
         if (current_step > 0) {
             // Remove old position
@@ -121,17 +129,7 @@ _Noreturn void device_loop(int dev_i) {
 
         // Second scan, print status and remove messages
         await_turn(dev_i);
-
         print_status();
-
-        // Remove all messages
-        list_handle_t *iter;
-        list_for_each(iter, &messages) {
-            msg *m = list_entry(iter, msg, list_handle);
-            free(m);
-        }
-        messages.next = NULL;
-
         pass_turn(dev_i);
 
         current_step++;
