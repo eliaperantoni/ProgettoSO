@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdbool.h>
 
 #include "dev.h"
 #include "steps.h"
@@ -54,7 +55,7 @@ _Noreturn void device_loop(int dev_i) {
     pid = getpid();
     init_fifo(pid);
 
-    while (1) {
+    while (true) {
         // First scan:
         //  1) Receive messages
         //  2) Send messages
@@ -97,8 +98,8 @@ _Noreturn void device_loop(int dev_i) {
                 list_handle_t *iter;
                 list_for_each(iter, &messages) {
                     msg *m = list_entry(iter, msg, list_handle);
-                    m->pid_sender = pid;
-                    if (dist <= m->max_dist) {
+                    if (dist <= m->max_dist && !has_dev_received_msg(target_pid, m->id)) {
+                        m->pid_sender = pid;
                         m->pid_receiver = target_pid;
                         send_msg(m);
                     }

@@ -42,10 +42,6 @@ void die(int code) {
     exit(code);
 }
 
-void ack_manager() {
-    pause();
-}
-
 int main(int argc, char *argv[]) {
     init_board();
     init_steps("./input/file_posizioni.txt");
@@ -54,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     // Spawn ACK Manager
     if (!(pids.ack_manager = fork()))
-        ack_manager();
+        ack_manager_loop();
 
     // Spawn devices
     for (int dev_i = 0; dev_i < DEV_COUNT; dev_i++)
