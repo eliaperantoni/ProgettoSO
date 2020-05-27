@@ -35,6 +35,8 @@ int init_steps(char *path) {
     }
 
     if(close(fd) == -1) return -1;
+
+    return 0;
 }
 
 void teardown_steps() {
