@@ -7,7 +7,7 @@
 
 #define BOARD_BYTES sizeof(pid_t) * BOARD_ROWS * BOARD_COLS
 
-static int board_shm_id = 0;
+static int board_shm_id;
 static pid_t *board_ptr;
 
 int init_board() {
@@ -23,8 +23,11 @@ int init_board() {
 }
 
 int teardown_board() {
-    if(shmdt(board_ptr) == -1) return -1;
-    if(shmctl(board_shm_id, IPC_RMID, NULL) == -1) return -1;
+    if(board_ptr != NULL) {
+        if(shmdt(board_ptr) == -1) return -1;
+        if(shmctl(board_shm_id, IPC_RMID, NULL) == -1) return -1;
+    }
+
     return 0;
 }
 

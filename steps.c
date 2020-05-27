@@ -40,10 +40,11 @@ int init_steps(char *path) {
 }
 
 void teardown_steps() {
-    free(steps_mem_ptr);
+    if(steps_mem_ptr != NULL)
+        free(steps_mem_ptr);
 }
 
-static int steps_sem_id = 0;
+static int steps_sem_id;
 
 int init_mov_semaphores() {
     steps_sem_id = semget(IPC_PRIVATE, DEV_COUNT + 1, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
@@ -56,7 +57,9 @@ int init_mov_semaphores() {
 }
 
 int teardown_mov_semaphores() {
-    if(semctl(steps_sem_id, 0, IPC_RMID) == -1) return -1;
+    if(steps_sem_id != 0)
+        if(semctl(steps_sem_id, 0, IPC_RMID) == -1) return -1;
+
     return 0;
 }
 

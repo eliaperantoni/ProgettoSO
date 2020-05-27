@@ -11,7 +11,7 @@
 #include "ack.h"
 
 static int ack_table_shm_id;
-static ack *ack_table_ptr = NULL;
+static ack *ack_table_ptr;
 
 static int ack_table_sem_id;
 
@@ -33,10 +33,14 @@ int init_ack_table() {
 }
 
 int teardown_ack_table() {
-    if(shmdt(ack_table_ptr) == -1) return -1;
-    if(shmctl(ack_table_shm_id, IPC_RMID, NULL) == -1) return -1;
+    if(ack_table_ptr != NULL) {
+        if(shmdt(ack_table_ptr) == -1) return -1;
+        if(shmctl(ack_table_shm_id, IPC_RMID, NULL) == -1) return -1;
+    }
 
-    if(semctl(ack_table_sem_id, 0, IPC_RMID) == -1) return -1;
+    if(ack_table_sem_id != 0) {
+        if(semctl(ack_table_sem_id, 0, IPC_RMID) == -1) return -1;
+    }
 
     return 0;
 }
@@ -51,7 +55,8 @@ int init_feedback_queue(int key) {
 }
 
 int teardown_feedback_queue() {
-    if(msgctl(queue_id, IPC_RMID, NULL) == -1) return -1;
+    if(queue_id != 0)
+        if(msgctl(queue_id, IPC_RMID, NULL) == -1) return -1;
 
     return 0;
 }

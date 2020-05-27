@@ -27,8 +27,10 @@ int init_fifo(pid_t pid) {
 }
 
 int teardown_fifo() {
-    if(close(fifo_fd) == -1) return -1;
-    if(unlink(fifo_path) == -1) return -1;
+    if(fifo_fd != 0) {
+        if(close(fifo_fd) == -1) return -1;
+        if(unlink(fifo_path) == -1) return -1;
+    }
 
     return 0;
 }

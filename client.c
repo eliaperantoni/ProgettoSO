@@ -13,7 +13,12 @@ static int comparator(const void *a, const void *b) {
     return ((ack *) a)->timestamp - ((ack *) b)->timestamp;
 }
 
+int output_file_fd;
+
 static void fatal(char* msg) {
+    if(output_file_fd != 0)
+        if(close(output_file_fd) == -1)
+            perror("[CLIENT] Could not close output file");
     perror(msg);
     exit(1);
 }
@@ -55,13 +60,13 @@ int main(int argc, char *argv[]) {
     char output_path[256];
     sprintf(output_path, "out_%d.txt", msg.id);
 
-    int fd = open(output_path, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-    if(fd == -1) fatal("[CLIENT] Opening output file");
+    output_file_fd = open(output_path, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+    if(output_file_fd == -1) fatal("[CLIENT] Opening output file");
 
     char header[512];
     int char_count = sprintf(header, "Messaggio %d: %s\nLista acknowledgement:\n", msg.id, msg.content);
 
-    write(fd, header, char_count);
+    write(output_file_fd, header, char_count);
 
     for (int i = 0; i < DEV_COUNT; i++) {
         ack *ack_ptr = feedback.acks + i;
@@ -72,10 +77,10 @@ int main(int argc, char *argv[]) {
         char row[256];
         char_count = sprintf(row, "%d, %d, %s\n", ack_ptr->pid_sender, ack_ptr->pid_receiver, formatted_time);
 
-        if(write(fd, row, char_count) < char_count) fatal("[CLIENT] Writing to output file");
+        if(write(output_file_fd, row, char_count) < char_count) fatal("[CLIENT] Writing to output file");
     }
 
-    if(close(fd) == -1) fatal("[CLIENT] Closing output file");
+    if(close(output_file_fd) == -1) fatal("[CLIENT] Closing output file");
 
     return 0;
 }
