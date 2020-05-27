@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     int fd = open(output_path, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
     if(fd == -1) fatal("[CLIENT] Opening output file");
 
-    char header[32];
+    char header[512];
     int char_count = sprintf(header, "Messaggio %d: %s\nLista acknowledgement:\n", msg.id, msg.content);
 
     write(fd, header, char_count);

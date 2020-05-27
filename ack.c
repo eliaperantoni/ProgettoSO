@@ -139,8 +139,6 @@ _Noreturn void ack_manager_loop() {
         // Empty rows are left last since message_id is greater than 0.
         qsort(ack_table_ptr, ACK_TABLE_ROWS, sizeof(ack), comparator);
 
-        display_ack_table();
-
         // `message_id` is the message id of the cluster we're at now
         int message_id = -1, streak = 0;
         // Scan rows.
