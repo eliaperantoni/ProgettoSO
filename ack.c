@@ -10,33 +10,33 @@
 
 #include "ack.h"
 
-static int shm_id;
-static ack *ptr = NULL;
+static int ack_table_shm_id;
+static ack *ack_table_ptr = NULL;
 
-static int sem_id;
+static int ack_table_sem_id;
 
 int init_ack_table() {
-    shm_id = shmget(IPC_PRIVATE, ACK_TABLE_BYTES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-    if(shm_id == -1) return -1;
+    ack_table_shm_id = shmget(IPC_PRIVATE, ACK_TABLE_BYTES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+    if(ack_table_shm_id == -1) return -1;
 
-    ptr = shmat(shm_id, NULL, 0);
-    if(ptr == (ack*)-1) return -1;
+    ack_table_ptr = shmat(ack_table_shm_id, NULL, 0);
+    if(ack_table_ptr == (ack*)-1) return -1;
 
-    memset(ptr, 0, ACK_TABLE_BYTES);
+    memset(ack_table_ptr, 0, ACK_TABLE_BYTES);
 
-    sem_id = semget(IPC_PRIVATE, 1, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-    if(sem_id == -1) return -1;
+    ack_table_sem_id = semget(IPC_PRIVATE, 1, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+    if(ack_table_sem_id == -1) return -1;
 
-    if(semctl(sem_id, 0, SETVAL, 1) == -1) return -1;
+    if(semctl(ack_table_sem_id, 0, SETVAL, 1) == -1) return -1;
 
     return 0;
 }
 
 int teardown_ack_table() {
-    if(shmdt(ptr) == -1) return -1;
-    if(shmctl(shm_id, IPC_RMID, NULL) == -1) return -1;
+    if(shmdt(ack_table_ptr) == -1) return -1;
+    if(shmctl(ack_table_shm_id, IPC_RMID, NULL) == -1) return -1;
 
-    if(semctl(sem_id, 0, IPC_RMID) == -1) return -1;
+    if(semctl(ack_table_sem_id, 0, IPC_RMID) == -1) return -1;
 
     return 0;
 }
@@ -61,7 +61,7 @@ int teardown_feedback_queue() {
 ack test_ack;
 
 static bool is_row_free(int row_i) {
-    return memcmp(ptr + row_i, &test_ack, sizeof(ack)) == 0;
+    return memcmp(ack_table_ptr + row_i, &test_ack, sizeof(ack)) == 0;
 }
 
 int add_ack(msg *msg_ptr) {
@@ -73,12 +73,12 @@ int add_ack(msg *msg_ptr) {
     };
 
     struct sembuf op = {.sem_num = 0, .sem_op = -1};
-    if(semop(sem_id, &op, 1) == -1) return -1;
+    if(semop(ack_table_sem_id, &op, 1) == -1) return -1;
 
     int row_i;
     for (row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
         if (is_row_free(row_i)) {
-            ptr[row_i] = new_ack;
+            ack_table_ptr[row_i] = new_ack;
             break;
         }
     }
@@ -87,14 +87,14 @@ int add_ack(msg *msg_ptr) {
     if(row_i == ACK_TABLE_ROWS) return -1;
 
     op.sem_op = +1;
-    if(semop(sem_id, &op, 1) == -1) return -1;
+    if(semop(ack_table_sem_id, &op, 1) == -1) return -1;
 
     return 0;
 }
 
 bool has_dev_received_msg(pid_t dev_pid, int msg_id) {
     for (int row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
-        ack *ack = ptr + row_i;
+        ack *ack = ack_table_ptr + row_i;
         if (ack->pid_receiver == dev_pid && ack->message_id == msg_id) return true;
     }
     return false;
@@ -111,7 +111,7 @@ void display_ack_table() {
         if (is_row_free(row_i)) {
             printf("EMPTY\n");
         } else {
-            ack *ack = ptr + row_i;
+            ack *ack = ack_table_ptr + row_i;
             printf("%d %d\n", ack->pid_receiver, ack->message_id);
         }
     }
@@ -132,12 +132,12 @@ _Noreturn void ack_manager_loop() {
 
         // Lock semaphore
         struct sembuf op = {.sem_num = 0, .sem_op = -1};
-        if(semop(sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Acquiring ack table mutex");
+        if(semop(ack_table_sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Acquiring ack table mutex");
 
         // Sort in descending order relative to message id.
         // This will cluster acks with the same message id together.
         // Empty rows are left last since message_id is greater than 0.
-        qsort(ptr, ACK_TABLE_ROWS, sizeof(ack), comparator);
+        qsort(ack_table_ptr, ACK_TABLE_ROWS, sizeof(ack), comparator);
 
         display_ack_table();
 
@@ -146,28 +146,28 @@ _Noreturn void ack_manager_loop() {
         // Scan rows.
         // As soon as we encounter an empty row we can stop scanning.
         for (int row_i = 0; row_i < ACK_TABLE_ROWS && !is_row_free(row_i); row_i++) {
-            if (ptr[row_i].message_id == message_id) {
+            if (ack_table_ptr[row_i].message_id == message_id) {
                 streak++;
                 if (streak == DEV_COUNT) {
                     // Send message to client
                     feedback feedback_msg = {
                             .message_id = message_id,
                     };
-                    memcpy(feedback_msg.acks, ptr + row_i - DEV_COUNT + 1, sizeof(ack[DEV_COUNT]));
+                    memcpy(feedback_msg.acks, ack_table_ptr + row_i - DEV_COUNT + 1, sizeof(ack[DEV_COUNT]));
                     if(msgsnd(queue_id, &feedback_msg, sizeof(feedback) - sizeof(long), 0) == -1)
                         perror("[ACK MANAGER] WARNING Couldn't send feedback to client");
 
                     // Reset this row + the last 4 to empty rows
-                    memset(ptr + row_i - DEV_COUNT + 1, 0, sizeof(ack) * DEV_COUNT);
+                    memset(ack_table_ptr + row_i - DEV_COUNT + 1, 0, sizeof(ack) * DEV_COUNT);
                 }
             } else {
-                message_id = ptr[row_i].message_id;
+                message_id = ack_table_ptr[row_i].message_id;
                 streak = 1;
             }
         }
 
         // Unlock semaphore
         op.sem_op = +1;
-        if(semop(sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Releasing ack table mutex");
+        if(semop(ack_table_sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Releasing ack table mutex");
     }
 }

@@ -151,7 +151,7 @@ _Noreturn void device_loop(int dev_i) {
         }
 
         // Set new position
-        current_pos = steps[current_step][dev_i];
+        current_pos = steps_mem_ptr[current_step][dev_i];
         board_set(current_pos, pid);
 
         if(pass_turn(dev_i) == -1) fatal("[DEVICE] Passing turn, 1st scan");

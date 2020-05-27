@@ -7,33 +7,33 @@
 
 #define BOARD_BYTES sizeof(pid_t) * BOARD_ROWS * BOARD_COLS
 
-static int id = 0;
-static pid_t *ptr;
+static int board_shm_id = 0;
+static pid_t *board_ptr;
 
 int init_board() {
-    id = shmget(IPC_PRIVATE, BOARD_BYTES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-    if(id == -1) return -1;
+    board_shm_id = shmget(IPC_PRIVATE, BOARD_BYTES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+    if(board_shm_id == -1) return -1;
 
-    ptr = shmat(id, NULL, 0);
-    if(ptr == (pid_t*)-1) return -1;
+    board_ptr = shmat(board_shm_id, NULL, 0);
+    if(board_ptr == (pid_t*)-1) return -1;
 
-    memset(ptr, 0, BOARD_BYTES);
+    memset(board_ptr, 0, BOARD_BYTES);
 
     return 0;
 }
 
 int teardown_board() {
-    if(shmdt(ptr) == -1) return -1;
-    if(shmctl(id, IPC_RMID, NULL) == -1) return -1;
+    if(shmdt(board_ptr) == -1) return -1;
+    if(shmctl(board_shm_id, IPC_RMID, NULL) == -1) return -1;
     return 0;
 }
 
 pid_t board_get(pos_t p) {
-    return ptr[p.y * BOARD_COLS + p.x];
+    return board_ptr[p.y * BOARD_COLS + p.x];
 }
 
 void board_set(pos_t p, pid_t val) {
-    ptr[p.y * BOARD_COLS + p.x] = val;
+    board_ptr[p.y * BOARD_COLS + p.x] = val;
 }
 
 void display_board() {
