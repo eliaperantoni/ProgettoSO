@@ -18,18 +18,18 @@ int fifo_fd;
 
 int init_fifo(pid_t pid) {
     sprintf(fifo_path, "/tmp/dev_fifo.%d", pid);
-    if(mkfifo(fifo_path, S_IRUSR | S_IWUSR) == -1) return -1;
+    if (mkfifo(fifo_path, S_IRUSR | S_IWUSR) == -1) return -1;
 
     fifo_fd = open(fifo_path, O_RDONLY | O_NONBLOCK);
-    if(fifo_fd == -1) return -1;
+    if (fifo_fd == -1) return -1;
 
     return 0;
 }
 
 int teardown_fifo() {
-    if(fifo_fd != 0) {
-        if(close(fifo_fd) == -1) return -1;
-        if(unlink(fifo_path) == -1) return -1;
+    if (fifo_fd != 0) {
+        if (close(fifo_fd) == -1) return -1;
+        if (unlink(fifo_path) == -1) return -1;
     }
 
     return 0;
@@ -72,24 +72,24 @@ static void sighandler(int sig) {
     exit(0);
 }
 
-static void fatal(char* msg) {
+static void fatal(char *msg) {
     perror(msg);
     kill(getppid(), SIGTERM);
-    exit(0);
+    exit(1);
 }
 
 _Noreturn void device_loop(int dev_i) {
-    if(signal(SIGTERM, sighandler) == SIG_ERR) fatal("[DEVICE] Setting signal handler");
+    if (signal(SIGTERM, sighandler) == SIG_ERR) fatal("[DEVICE] Setting signal handler");
 
     pid = getpid();
-    if(init_fifo(pid) == -1) fatal("[DEVICE] Creating FIFO");
+    if (init_fifo(pid) == -1) fatal("[DEVICE] Creating FIFO");
 
     while (true) {
         // First scan:
         //  1) Send messages
         //  2) Receive messages
         //  3) Move
-        if(await_turn(dev_i) == -1) fatal("[DEVICE] Awaiting turn, 1st scan");
+        if (await_turn(dev_i) == -1) fatal("[DEVICE] Awaiting turn, 1st scan");
 
         // 1) Send messages
         for (int x = 0; x < BOARD_COLS; x++) {
@@ -112,7 +112,7 @@ _Noreturn void device_loop(int dev_i) {
                     if (dist <= m->max_dist && !has_dev_received_msg(target_pid, m->id)) {
                         m->pid_sender = pid;
                         m->pid_receiver = target_pid;
-                        if(send_msg(m) == -1) fatal("[DEVICE] Broadcasting message");
+                        if (send_msg(m) == -1) fatal("[DEVICE] Broadcasting message");
                     }
                 }
             }
@@ -128,6 +128,7 @@ _Noreturn void device_loop(int dev_i) {
 
         // 2) Receive messages
         // Keep reading messages but only alloc on heap if a message exists.
+        read_loop:
         while (1) {
             // Use stack allocated message as buffer.
             msg msg_temp;
@@ -136,14 +137,25 @@ _Noreturn void device_loop(int dev_i) {
             int br = read(fifo_fd, &msg_temp, sizeof(msg));
             if (br < sizeof(msg)) break;
 
-            // If read is successful then malloc and copy over the buffer using `memcpy`
-            msg *msg_ptr = malloc(sizeof(msg));
-            if(msg_ptr == NULL) fatal("[DEVICE] Allocating memory for message");
+            // Skip message if already have a copy of it.
+            // This may happen if multiple devices send the same message to us because they work in previous turns
+            // and we have to way to add an ACK in the meantime.
+            list_for_each(iter, &messages) {
+                msg *m = list_entry(iter, msg, list_handle);
+                // We need to use goto since continue will just skip a message.
+                // Remember `list_for_each` is a loop in itself.
+                if (m->id == msg_temp.id) goto read_loop;
+            }
 
+            // Malloc a message
+            msg *msg_ptr = malloc(sizeof(msg));
+            if (msg_ptr == NULL) fatal("[DEVICE] Allocating memory for message");
+
+            // Copy the struct from the stack to the heap
             memcpy(msg_ptr, &msg_temp, sizeof(msg));
             list_insert_after(&messages, &msg_ptr->list_handle);
 
-            if(add_ack(msg_ptr) == -1) fatal("[DEVICE] Adding ack");
+            if (add_ack(msg_ptr) == -1) fatal("[DEVICE] Adding ack");
         }
 
         // 3) Move
@@ -156,12 +168,12 @@ _Noreturn void device_loop(int dev_i) {
         current_pos = steps_mem_ptr[current_step][dev_i];
         board_set(current_pos, pid);
 
-        if(pass_turn(dev_i) == -1) fatal("[DEVICE] Passing turn, 1st scan");
+        if (pass_turn(dev_i) == -1) fatal("[DEVICE] Passing turn, 1st scan");
 
         // Second scan, print status and remove messages
-        if(await_turn(dev_i) == -1) fatal("[DEVICE] Awaiting turn, 2nd scan");
+        if (await_turn(dev_i) == -1) fatal("[DEVICE] Awaiting turn, 2nd scan");
         print_status();
-        if(pass_turn(dev_i) == -1) fatal("[DEVICE] Passing turn, 2nd scan");
+        if (pass_turn(dev_i) == -1) fatal("[DEVICE] Passing turn, 2nd scan");
 
         current_step++;
     }

@@ -1,6 +1,3 @@
-/// @file server.c
-/// @brief Contiene l'implementazione del SERVER.
-
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/wait.h>
