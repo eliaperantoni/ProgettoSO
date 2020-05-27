@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <signal.h>
 
 #include "ack.h"
 
@@ -14,30 +15,45 @@ static ack *ptr = NULL;
 
 static int sem_id;
 
-void init_ack_table() {
+int init_ack_table() {
     shm_id = shmget(IPC_PRIVATE, ACK_TABLE_BYTES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+    if(shm_id == -1) return -1;
+
     ptr = shmat(shm_id, NULL, 0);
+    if(ptr == (ack*)-1) return -1;
+
     memset(ptr, 0, ACK_TABLE_BYTES);
 
     sem_id = semget(IPC_PRIVATE, 1, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-    semctl(sem_id, 0, SETVAL, 1);
+    if(sem_id == -1) return -1;
+
+    if(semctl(sem_id, 0, SETVAL, 1) == -1) return -1;
+
+    return 0;
 }
 
-void teardown_ack_table() {
-    shmdt(ptr);
-    shmctl(shm_id, IPC_RMID, NULL);
+int teardown_ack_table() {
+    if(shmdt(ptr) == -1) return -1;
+    if(shmctl(shm_id, IPC_RMID, NULL) == -1) return -1;
 
-    semctl(sem_id, 0, IPC_RMID);
+    if(semctl(sem_id, 0, IPC_RMID) == -1) return -1;
+
+    return 0;
 }
 
 static int queue_id;
 
-void init_feedback_queue(int key) {
+int init_feedback_queue(int key) {
     queue_id = msgget(key, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
+    if(queue_id == -1) return -1;
+
+    return 0;
 }
 
-void teardown_feedback_queue() {
-    msgctl(queue_id, IPC_RMID, NULL);
+int teardown_feedback_queue() {
+    if(msgctl(queue_id, IPC_RMID, NULL) == -1) return -1;
+
+    return 0;
 }
 
 // Global vars are initialized to 0.
@@ -48,7 +64,7 @@ static bool is_row_free(int row_i) {
     return memcmp(ptr + row_i, &test_ack, sizeof(ack)) == 0;
 }
 
-void add_ack(msg *msg_ptr) {
+int add_ack(msg *msg_ptr) {
     ack new_ack = {
             .pid_sender = msg_ptr->pid_sender,
             .pid_receiver = msg_ptr->pid_receiver,
@@ -57,19 +73,23 @@ void add_ack(msg *msg_ptr) {
     };
 
     struct sembuf op = {.sem_num = 0, .sem_op = -1};
-    semop(sem_id, &op, 1);
+    if(semop(sem_id, &op, 1) == -1) return -1;
 
-    for (int row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
+    int row_i;
+    for (row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
         if (is_row_free(row_i)) {
             ptr[row_i] = new_ack;
             break;
         }
     }
 
-    // TODO Handle full table
+    // Did not find an empty row
+    if(row_i == ACK_TABLE_ROWS) return -1;
 
     op.sem_op = +1;
-    semop(sem_id, &op, 1);
+    if(semop(sem_id, &op, 1) == -1) return -1;
+
+    return 0;
 }
 
 bool has_dev_received_msg(pid_t dev_pid, int msg_id) {
@@ -98,18 +118,28 @@ void display_ack_table() {
     printf("===============================\n");
 }
 
+static void fatal(char* msg) {
+    perror(msg);
+    kill(getppid(), SIGTERM);
+    exit(1);
+}
+
 _Noreturn void ack_manager_loop() {
+    if(signal(SIGTERM, SIG_DFL) == SIG_ERR) fatal("[ACK MANAGER] Setting signal handler");
+
     while (true) {
         sleep(5);
 
         // Lock semaphore
         struct sembuf op = {.sem_num = 0, .sem_op = -1};
-        semop(sem_id, &op, 1);
+        if(semop(sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Acquiring ack table mutex");
 
         // Sort in descending order relative to message id.
         // This will cluster acks with the same message id together.
         // Empty rows are left last since message_id is greater than 0.
         qsort(ptr, ACK_TABLE_ROWS, sizeof(ack), comparator);
+
+        display_ack_table();
 
         // `message_id` is the message id of the cluster we're at now
         int message_id = -1, streak = 0;
@@ -124,7 +154,8 @@ _Noreturn void ack_manager_loop() {
                             .message_id = message_id,
                     };
                     memcpy(feedback_msg.acks, ptr + row_i - DEV_COUNT + 1, sizeof(ack[DEV_COUNT]));
-                    msgsnd(queue_id, &feedback_msg, sizeof(feedback) - sizeof(long), 0);
+                    if(msgsnd(queue_id, &feedback_msg, sizeof(feedback) - sizeof(long), 0) == -1)
+                        perror("[ACK MANAGER] WARNING Couldn't send feedback to client");
 
                     // Reset this row + the last 4 to empty rows
                     memset(ptr + row_i - DEV_COUNT + 1, 0, sizeof(ack) * DEV_COUNT);
@@ -137,6 +168,6 @@ _Noreturn void ack_manager_loop() {
 
         // Unlock semaphore
         op.sem_op = +1;
-        semop(sem_id, &op, 1);
+        if(semop(sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Releasing ack table mutex");
     }
 }

@@ -4,13 +4,15 @@
 
 #include "msg.h"
 
-void send_msg(msg* m) {
+int send_msg(msg* m) {
     char fifo_path[64];
     sprintf(fifo_path, "/tmp/dev_fifo.%d", m->pid_receiver);
 
     int fifo_fd = open(fifo_path, O_WRONLY);
+    if(fifo_fd == -1) return -1;
 
-    write(fifo_fd, m, sizeof(msg));
+    if(write(fifo_fd, m, sizeof(msg)) < sizeof(msg)) return -1;
 
-    close(fifo_fd);
+    if(close(fifo_fd) == -1) return -1;
+    return 0;
 }

@@ -11,17 +11,17 @@ extern long steps_count;
 // Access it like `steps[step_index][device_index]`
 extern step* steps;
 
-void init_steps(char* path);
+int init_steps(char* path);
 void teardown_steps();
 
-void init_mov_semaphores();
-void teardown_mov_semaphores();
+int init_mov_semaphores();
+int teardown_mov_semaphores();
 
 extern int current_step;
 
 #define in_turn(dev_i, code) await_turn(dev_i); {code} pass_turn(dev_i)
 
-void await_turn(int dev_i);
-void pass_turn(int dev_i);
+int await_turn(int dev_i);
+int pass_turn(int dev_i);
 
-void perform_step();
+int perform_step();

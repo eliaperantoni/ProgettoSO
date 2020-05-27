@@ -13,6 +13,11 @@ static int comparator(const void *a, const void *b) {
     return ((ack *) a)->timestamp - ((ack *) b)->timestamp;
 }
 
+static void fatal(char* msg) {
+    perror(msg);
+    exit(1);
+}
+
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("Usage: client <msg_queue_key>\n");
@@ -20,6 +25,7 @@ int main(int argc, char *argv[]) {
     }
 
     int queue_id = msgget(atoi(argv[1]), S_IRUSR | S_IWUSR);
+    if(queue_id == -1) fatal("[CLIENT] Opening feedback queue");
 
     msg msg = {
             .list_handle = null_list_handle,
@@ -38,10 +44,11 @@ int main(int argc, char *argv[]) {
     printf("MAX DIST: ");
     scanf(" %lf", &msg.max_dist);
 
-    send_msg(&msg);
+    if(send_msg(&msg) == -1) fatal("[CLIENT] Sending message to device FIFO");
 
     feedback feedback;
-    msgrcv(queue_id, &feedback, sizeof(feedback) - sizeof(long), msg.id, 0);
+    if(msgrcv(queue_id, &feedback, sizeof(feedback) - sizeof(long), msg.id, 0) == -1)
+        fatal("[CLIENT] Receiving feedback from ACK manager");
 
     qsort(feedback.acks, DEV_COUNT, sizeof(ack), comparator);
 
@@ -49,6 +56,7 @@ int main(int argc, char *argv[]) {
     sprintf(output_path, "out_%d.txt", msg.id);
 
     int fd = open(output_path, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+    if(fd == -1) fatal("[CLIENT] Opening output file");
 
     char header[32];
     int char_count = sprintf(header, "Messaggio %d: %s\nLista acknowledgement:\n", msg.id, msg.content);
@@ -64,10 +72,10 @@ int main(int argc, char *argv[]) {
         char row[256];
         char_count = sprintf(row, "%d, %d, %s\n", ack_ptr->pid_sender, ack_ptr->pid_receiver, formatted_time);
 
-        write(fd, row, char_count);
+        if(write(fd, row, char_count) < char_count) fatal("[CLIENT] Writing to output file");
     }
 
-    close(fd);
+    if(close(fd) == -1) fatal("[CLIENT] Closing output file");
 
     return 0;
 }

@@ -6,6 +6,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdbool.h>
+#include <signal.h>
 
 #include "dev.h"
 #include "steps.h"
@@ -15,15 +16,21 @@
 char fifo_path[64];
 int fifo_fd;
 
-void init_fifo(pid_t pid) {
+int init_fifo(pid_t pid) {
     sprintf(fifo_path, "/tmp/dev_fifo.%d", pid);
-    mkfifo(fifo_path, S_IRUSR | S_IWUSR);
+    if(mkfifo(fifo_path, S_IRUSR | S_IWUSR) == -1) return -1;
+
     fifo_fd = open(fifo_path, O_RDONLY | O_NONBLOCK);
+    if(fifo_fd == -1) return -1;
+
+    return 0;
 }
 
-void teardown_fifo() {
-    close(fifo_fd);
-    unlink(fifo_path);
+int teardown_fifo() {
+    if(close(fifo_fd) == -1) return -1;
+    if(unlink(fifo_path) == -1) return -1;
+
+    return 0;
 }
 
 // Process ID of the device
@@ -51,16 +58,36 @@ void print_status() {
     printf("%d %d %d msgs: %s\n", pid, current_pos.x, current_pos.y, msg_ids);
 }
 
+static void sighandler(int sig) {
+    teardown_fifo();
+
+    list_handle_t *iter;
+    list_for_each(iter, &messages) {
+        msg *m = list_entry(iter, msg, list_handle);
+        free(m);
+    }
+
+    exit(0);
+}
+
+static void fatal(char* msg) {
+    perror(msg);
+    kill(getppid(), SIGTERM);
+    exit(0);
+}
+
 _Noreturn void device_loop(int dev_i) {
+    if(signal(SIGTERM, sighandler) == SIG_ERR) fatal("[DEVICE] Setting signal handler");
+
     pid = getpid();
-    init_fifo(pid);
+    if(init_fifo(pid) == -1) fatal("[DEVICE] Creating FIFO");
 
     while (true) {
         // First scan:
         //  1) Send messages
         //  2) Receive messages
         //  3) Move
-        await_turn(dev_i);
+        if(await_turn(dev_i) == -1) fatal("[DEVICE] Awaiting turn, 1st scan");
 
         // 1) Send messages
         for (int x = 0; x < BOARD_COLS; x++) {
@@ -83,7 +110,7 @@ _Noreturn void device_loop(int dev_i) {
                     if (dist <= m->max_dist && !has_dev_received_msg(target_pid, m->id)) {
                         m->pid_sender = pid;
                         m->pid_receiver = target_pid;
-                        send_msg(m);
+                        if(send_msg(m) == -1) fatal("[DEVICE] Broadcasting message");
                     }
                 }
             }
@@ -109,10 +136,12 @@ _Noreturn void device_loop(int dev_i) {
 
             // If read is successful then malloc and copy over the buffer using `memcpy`
             msg *msg_ptr = malloc(sizeof(msg));
+            if(msg_ptr == NULL) fatal("[DEVICE] Allocating memory for message");
+
             memcpy(msg_ptr, &msg_temp, sizeof(msg));
             list_insert_after(&messages, &msg_ptr->list_handle);
 
-            add_ack(msg_ptr);
+            if(add_ack(msg_ptr) == -1) fatal("[DEVICE] Adding ack");
         }
 
         // 3) Move
@@ -125,12 +154,12 @@ _Noreturn void device_loop(int dev_i) {
         current_pos = steps[current_step][dev_i];
         board_set(current_pos, pid);
 
-        pass_turn(dev_i);
+        if(pass_turn(dev_i) == -1) fatal("[DEVICE] Passing turn, 1st scan");
 
         // Second scan, print status and remove messages
-        await_turn(dev_i);
+        if(await_turn(dev_i) == -1) fatal("[DEVICE] Awaiting turn, 2nd scan");
         print_status();
-        pass_turn(dev_i);
+        if(pass_turn(dev_i) == -1) fatal("[DEVICE] Passing turn, 2nd scan");
 
         current_step++;
     }
