@@ -23,7 +23,7 @@ int init_board() {
 }
 
 int teardown_board() {
-    if(board_ptr != NULL) {
+    if(board_ptr != NULL && board_ptr != (pid_t*)-1) {
         if(shmdt(board_ptr) == -1) return -1;
         if(shmctl(board_shm_id, IPC_RMID, NULL) == -1) return -1;
     }

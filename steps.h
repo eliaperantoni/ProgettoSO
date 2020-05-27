@@ -19,8 +19,6 @@ int teardown_mov_semaphores();
 
 extern int current_step;
 
-#define in_turn(dev_i, code) await_turn(dev_i); {code} pass_turn(dev_i)
-
 int await_turn(int dev_i);
 int pass_turn(int dev_i);
 

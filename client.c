@@ -16,7 +16,7 @@ static int comparator(const void *a, const void *b) {
 int output_file_fd;
 
 static void fatal(char* msg) {
-    if(output_file_fd != 0)
+    if(output_file_fd != 0 && output_file_fd != -1)
         if(close(output_file_fd) == -1)
             perror("[CLIENT] Could not close output file");
     perror(msg);
@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
     if(queue_id == -1) fatal("[CLIENT] Opening feedback queue");
 
     msg msg = {
+            // Very important to initialize list_handle to it's null value because devices will assume this.
             .list_handle = null_list_handle,
             .pid_sender = getpid(),
     };

@@ -57,7 +57,7 @@ int init_mov_semaphores() {
 }
 
 int teardown_mov_semaphores() {
-    if(steps_sem_id != 0)
+    if(steps_sem_id != 0 && steps_sem_id != -1)
         if(semctl(steps_sem_id, 0, IPC_RMID) == -1) return -1;
 
     return 0;
