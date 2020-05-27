@@ -89,7 +89,7 @@ int add_ack(msg *msg_ptr) {
     }
 
     // Did not find an empty row
-    if(row_i == ACK_TABLE_ROWS) return -1;
+    if(row_i == ACK_TABLE_ROWS) return -2;
 
     op.sem_op = +1;
     if(semop(ack_table_sem_id, &op, 1) == -1) return -1;

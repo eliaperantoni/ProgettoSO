@@ -155,7 +155,14 @@ _Noreturn void device_loop(int dev_i) {
             memcpy(msg_ptr, &msg_temp, sizeof(msg));
             list_insert_after(&messages, &msg_ptr->list_handle);
 
-            if (add_ack(msg_ptr) == -1) fatal("[DEVICE] Adding ack");
+            switch(add_ack(msg_ptr)) {
+                case -1:
+                    fatal("[DEVICE] Adding ack");
+                case -2:
+                    printf("[DEVICE] ACK table is full!");
+                    kill(getppid(), SIGTERM);
+                    exit(1);
+            }
         }
 
         // 3) Move
