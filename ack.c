@@ -98,23 +98,7 @@ int add_ack(msg *msg_ptr) {
     return 0;
 }
 
-typedef struct {
-    int born_at_step;
-    int message_id;
-    list_handle_t list_handle;
-} zombie;
-
-list_handle_t zombies = null_list_handle;
-
 bool has_dev_received_msg(pid_t dev_pid, int msg_id) {
-    list_handle_t *iter;
-    list_for_each(iter, &zombies) {
-        zombie *z = list_entry(iter, zombie, list_handle);
-        if(z->message_id == msg_id) {
-            return true;
-        }
-    }
-
     for (int row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
         ack *ack = ack_table_ptr + row_i;
         if (ack->pid_receiver == dev_pid && ack->message_id == msg_id) return true;
