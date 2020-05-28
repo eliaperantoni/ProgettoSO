@@ -92,10 +92,6 @@ int main(int argc, char *argv[]) {
         if(perform_step() == -1)
             fatal("[SERVER] Performing step");
         printf("#######################################\n\n");
-
-        if(kill(pids.ack_manager, SIGUSR1) == -1)
-            fatal("[SERVER] Couldn't bumb ACK manager current step");
-
         sleep(2);
     }
 }

@@ -147,40 +147,15 @@ static void fatal(char *msg) {
     exit(1);
 }
 
-void sighandler(int sig) {
-    current_step++;
-}
-
 _Noreturn void ack_manager_loop() {
-    if (signal(SIGTERM, SIG_DFL) == SIG_ERR)
-        fatal("[ACK MANAGER] Resetting SIGTERM signal handler to default");
-
-    // Unblock SIGUSR1
-    sigset_t sigset;
-    if (sigemptyset(&sigset) == -1)
-        fatal("[ACK MANAGER] Setting empty signal set");
-    if (sigaddset(&sigset, SIGUSR1) == -1)
-        fatal("[ACK MANAGER] Adding SIGUSR1 signal set");
-    if (sigprocmask(SIG_UNBLOCK, &sigset, NULL) == -1)
-        fatal("[ACK MANAGER] Unblocking from signal set");
-    if (signal(SIGUSR1, sighandler) == SIG_ERR)
-        fatal("[ACK MANAGER] Setting SIGUSR1 signal handler");
+    if (signal(SIGTERM, SIG_DFL) == SIG_ERR) fatal("[ACK MANAGER] Resetting SIGTERM signal handler to default");
 
     while (true) {
-        unsigned int remaining = 5;
-        while (remaining > 0) remaining = sleep(remaining);
+        sleep(5);
 
         // Lock semaphore
         struct sembuf op = {.sem_num = 0, .sem_op = -1};
         if (semop(ack_table_sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Acquiring ack table mutex");
-
-        list_handle_t *iter;
-        list_for_each(iter, &zombies) {
-            zombie *z = list_entry(iter, zombie, list_handle);
-            if(z->message_id == msg_id) {
-                return true;
-            }
-        }
 
         // Sort in descending order relative to message id.
         // This will cluster acks with the same message id together.
@@ -205,14 +180,6 @@ _Noreturn void ack_manager_loop() {
 
                     // Reset this row + the last 4 to empty rows
                     memset(ack_table_ptr + row_i - DEV_COUNT + 1, 0, sizeof(ack) * DEV_COUNT);
-
-                    zombie *zombie_ptr = malloc(sizeof(zombie));
-                    *zombie_ptr = (zombie) {
-                        .born_at_step = current_step,
-                        .message_id = message_id,
-                        .list_handle = null_list_handle,
-                    };
-                    list_insert_after(&zombies, &zombie_ptr->list_handle);
                 }
             } else {
                 message_id = ack_table_ptr[row_i].message_id;
