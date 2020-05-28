@@ -109,7 +109,12 @@ _Noreturn void device_loop(int dev_i) {
                 list_handle_t *iter;
                 list_for_each(iter, &messages) {
                     msg *m = list_entry(iter, msg, list_handle);
-                    if (dist <= m->max_dist && !has_dev_received_msg(target_pid, m->id)) {
+
+                    if (lock_ack_table() == -1) fatal("[DEVICE] Locking ACK table");
+                    bool should_send = dist <= m->max_dist && !has_dev_received_msg(target_pid, m->id);
+                    if (unlock_ack_table() == -1) fatal("[DEVICE] Unlocking ACK table");
+
+                    if (should_send) {
                         m->pid_sender = pid;
                         m->pid_receiver = target_pid;
                         if (send_msg(m) == -1) fatal("[DEVICE] Broadcasting message");
@@ -153,15 +158,18 @@ _Noreturn void device_loop(int dev_i) {
 
             // Copy the struct from the stack to the heap
             memcpy(msg_ptr, &msg_temp, sizeof(msg));
+            // Make sure list handle is not dirty
+            msg_ptr->list_handle = (list_handle_t) null_list_handle;
             list_insert_after(&messages, &msg_ptr->list_handle);
 
-            switch(add_ack(msg_ptr)) {
-                case -1:
-                    fatal("[DEVICE] Adding ack");
-                case -2:
-                    printf("[DEVICE] ACK table is full!");
-                    kill(getppid(), SIGTERM);
-                    exit(1);
+            if (lock_ack_table() == -1) fatal("[DEVICE] Locking ACK table");
+            int add_ack_res = add_ack(msg_ptr);
+            if (unlock_ack_table() == -1) fatal("[DEVICE] Unlocking ACK table");
+
+            if (add_ack_res == -1) {
+                printf("[DEVICE] ACK table is full!");
+                kill(getppid(), SIGTERM);
+                exit(1);
             }
         }
 

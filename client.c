@@ -33,8 +33,6 @@ int main(int argc, char *argv[]) {
     if(queue_id == -1) fatal("[CLIENT] Opening feedback queue");
 
     msg msg = {
-            // Very important to initialize list_handle to it's null value because devices will assume this.
-            .list_handle = null_list_handle,
             .pid_sender = getpid(),
     };
 

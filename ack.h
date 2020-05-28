@@ -15,10 +15,14 @@ typedef struct {
     pid_t pid_receiver;
     int message_id;
     time_t timestamp;
+    int zombie_at;
 } ack;
 
 int init_ack_table();
 int teardown_ack_table();
+
+int lock_ack_table();
+int unlock_ack_table();
 
 _Noreturn void ack_manager_loop();
 

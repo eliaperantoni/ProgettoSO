@@ -62,6 +62,20 @@ int teardown_feedback_queue() {
     return 0;
 }
 
+int lock_ack_table() {
+    struct sembuf op = {.sem_num = 0, .sem_op = -1};
+    if (semop(ack_table_sem_id, &op, 1) == -1) return -1;
+
+    return 0;
+}
+
+int unlock_ack_table() {
+    struct sembuf op = {.sem_num = 0, .sem_op = +1};
+    if (semop(ack_table_sem_id, &op, 1) == -1) return -1;
+
+    return 0;
+}
+
 // Global vars are initialized to 0.
 // We'll use this to check if a rock is free.
 ack test_ack;
@@ -76,10 +90,8 @@ int add_ack(msg *msg_ptr) {
             .pid_receiver = msg_ptr->pid_receiver,
             .message_id =  msg_ptr->id,
             .timestamp = time(0),
+            .zombie_at = -1,
     };
-
-    struct sembuf op = {.sem_num = 0, .sem_op = -1};
-    if (semop(ack_table_sem_id, &op, 1) == -1) return -1;
 
     int row_i;
     for (row_i = 0; row_i < ACK_TABLE_ROWS; row_i++) {
@@ -90,10 +102,7 @@ int add_ack(msg *msg_ptr) {
     }
 
     // Did not find an empty row
-    if (row_i == ACK_TABLE_ROWS) return -2;
-
-    op.sem_op = +1;
-    if (semop(ack_table_sem_id, &op, 1) == -1) return -1;
+    if (row_i == ACK_TABLE_ROWS) return -1;
 
     return 0;
 }
@@ -119,10 +128,10 @@ void display_ack_table() {
             printf("EMPTY\n");
         } else {
             ack *ack = ack_table_ptr + row_i;
-            printf("%d %d\n", ack->pid_receiver, ack->message_id);
+            printf("%d %d %s\n", ack->pid_receiver, ack->message_id, ack->zombie_at != -1 ? "ZOMBIE" : "");
         }
     }
-    printf("===============================\n");
+    printf("===============================\n\n");
 }
 
 static void fatal(char *msg) {
@@ -131,15 +140,32 @@ static void fatal(char *msg) {
     exit(1);
 }
 
+void sighandler(int sig) {
+    current_step++;
+}
+
 _Noreturn void ack_manager_loop() {
-    if (signal(SIGTERM, SIG_DFL) == SIG_ERR) fatal("[ACK MANAGER] Resetting SIGTERM signal handler to default");
+    if (signal(SIGTERM, SIG_DFL) == SIG_ERR)
+        fatal("[DEVICE] Resetting SIGTERM signal handler to default");
+
+    // Unblock SIGUSR1 and set handler
+    sigset_t sigset;
+    if (sigemptyset(&sigset) == -1)
+        fatal("[ACK MANAGER] Setting empty signal set");
+    if (sigaddset(&sigset, SIGUSR1) == -1)
+        fatal("[ACK MANAGER] Adding SIGUSR1 signal set");
+    if (sigprocmask(SIG_UNBLOCK, &sigset, NULL) == -1)
+        fatal("[ACK MANAGER] Unblocking from signal set");
+    if (signal(SIGUSR1, sighandler) == SIG_ERR)
+        fatal("[ACK MANAGER] Setting SIGUSR1 signal handler");
 
     while (true) {
-        sleep(5);
+        unsigned int remaining = 5;
+        while (remaining > 0) remaining = sleep(remaining);
 
         // Lock semaphore
-        struct sembuf op = {.sem_num = 0, .sem_op = -1};
-        if (semop(ack_table_sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Acquiring ack table mutex");
+        if (lock_ack_table() == -1)
+            fatal("[ACK MANAGER] Acquiring ack table mutex");
 
         // Sort in descending order relative to message id.
         // This will cluster acks with the same message id together.
@@ -151,6 +177,13 @@ _Noreturn void ack_manager_loop() {
         // Scan rows.
         // As soon as we encounter an empty row we can stop scanning.
         for (int row_i = 0; row_i < ACK_TABLE_ROWS && !is_row_free(row_i); row_i++) {
+            // Delete zombies when they are too old
+            if(ack_table_ptr[row_i].zombie_at != -1 && current_step - ack_table_ptr[row_i].zombie_at >= 2) {
+                memset(ack_table_ptr, 0, sizeof(ack) * DEV_COUNT);
+                row_i += DEV_COUNT - 1;
+                continue;
+            }
+
             if (ack_table_ptr[row_i].message_id == message_id) {
                 streak++;
                 if (streak == DEV_COUNT) {
@@ -162,8 +195,9 @@ _Noreturn void ack_manager_loop() {
                     if (msgsnd(queue_id, &feedback_msg, sizeof(feedback) - sizeof(long), 0) == -1)
                         perror("[ACK MANAGER] WARNING Couldn't send feedback to client");
 
-                    // Reset this row + the last 4 to empty rows
-                    memset(ack_table_ptr + row_i - DEV_COUNT + 1, 0, sizeof(ack) * DEV_COUNT);
+                    // Zombify all ACKs for this message
+                    for(int go_back = 0; go_back < DEV_COUNT; go_back++)
+                        ack_table_ptr[row_i - go_back].zombie_at = current_step;
                 }
             } else {
                 message_id = ack_table_ptr[row_i].message_id;
@@ -172,7 +206,7 @@ _Noreturn void ack_manager_loop() {
         }
 
         // Unlock semaphore
-        op.sem_op = +1;
-        if (semop(ack_table_sem_id, &op, 1) == -1) fatal("[ACK MANAGER] Releasing ack table mutex");
+        if(unlock_ack_table() == -1)
+            fatal("[ACK MANAGER] Releasing ack table mutex");
     }
 }
