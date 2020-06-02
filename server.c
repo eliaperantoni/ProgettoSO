@@ -28,14 +28,12 @@ void die(int code) {
 
     // Teardown allocated memory and remove IPCs
     if(teardown_board() == -1)
-        perror("[SERVER] Could not teardown down");
+        perror("[SERVER] Could not teardown board");
     teardown_steps();
     if(teardown_mov_semaphores() == -1)
         perror("[SERVER] Could not teardown movement semaphores");
     if(teardown_ack_table() == -1)
         perror("[SERVER] Could not teardown ack table");
-    if(teardown_feedback_queue() == -1)
-        perror("[SERVER] Could not teardown feedback queue");
 
     exit(code);
 }
@@ -75,12 +73,10 @@ int main(int argc, char *argv[]) {
         fatal("[SERVER] Initializing movement semaphores");
     if (init_ack_table() == -1)
         fatal("[SERVER] Initializing ack table");
-    if (init_feedback_queue(atoi(argv[1])) == -1)
-        fatal("[SERVER] Initializing feedback queue");
 
     // Spawn ACK Manager
     if (!(pids.ack_manager = fork()))
-        ack_manager_loop();
+        ack_manager_loop(atoi(argv[1]));
 
     // Spawn devices
     for (int dev_i = 0; dev_i < DEV_COUNT; dev_i++)

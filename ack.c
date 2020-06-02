@@ -141,12 +141,19 @@ static void fatal(char *msg) {
 }
 
 void sighandler(int sig) {
-    current_step++;
+    if(sig == SIGUSR1)
+     current_step++;
+    else if(sig == SIGTERM) {
+        if(teardown_feedback_queue() == -1)
+            perror("[ACK MANAGER] Could not teardown feedback queue");
+
+        exit(0);
+    }
 }
 
-_Noreturn void ack_manager_loop() {
-    if (signal(SIGTERM, SIG_DFL) == SIG_ERR)
-        fatal("[DEVICE] Resetting SIGTERM signal handler to default");
+_Noreturn void ack_manager_loop(int msg_queue_key) {
+    if (signal(SIGTERM, sighandler) == SIG_ERR)
+        fatal("[ACK MANAGER] Setting SIGTERM handler");
 
     // Unblock SIGUSR1 and set handler
     sigset_t sigset;
@@ -156,8 +163,12 @@ _Noreturn void ack_manager_loop() {
         fatal("[ACK MANAGER] Adding SIGUSR1 signal set");
     if (sigprocmask(SIG_UNBLOCK, &sigset, NULL) == -1)
         fatal("[ACK MANAGER] Unblocking from signal set");
+
     if (signal(SIGUSR1, sighandler) == SIG_ERR)
-        fatal("[ACK MANAGER] Setting SIGUSR1 signal handler");
+        fatal("[ACK MANAGER] Setting SIGUSR1 handler");
+
+    if(init_feedback_queue(msg_queue_key) == -1)
+        fatal("[ACK MANAGER] Initializing feedback queue");
 
     while (true) {
         unsigned int remaining = 5;

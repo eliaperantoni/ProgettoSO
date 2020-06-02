@@ -24,14 +24,11 @@ int teardown_ack_table();
 int lock_ack_table();
 int unlock_ack_table();
 
-_Noreturn void ack_manager_loop();
+_Noreturn void ack_manager_loop(int msg_queue_key);
 
 int add_ack(msg *msg_ptr);
 
 bool has_dev_received_msg(pid_t dev_pid, int msg_id);
-
-int init_feedback_queue(int key);
-int teardown_feedback_queue();
 
 typedef struct {
     long message_id;
