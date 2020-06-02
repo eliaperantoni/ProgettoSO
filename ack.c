@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <signal.h>
+#include <errno.h>
 
 #include "ack.h"
 #include "steps.h"
@@ -64,16 +65,22 @@ int teardown_feedback_queue() {
 
 int lock_ack_table() {
     struct sembuf op = {.sem_num = 0, .sem_op = -1};
-    if (semop(ack_table_sem_id, &op, 1) == -1) return -1;
-
-    return 0;
+    while (true) {
+        int res = semop(ack_table_sem_id, &op, 1);
+        if(res != -1) return 0;
+        else if(errno == EINTR) continue;
+        else return -1;
+    }
 }
 
 int unlock_ack_table() {
     struct sembuf op = {.sem_num = 0, .sem_op = +1};
-    if (semop(ack_table_sem_id, &op, 1) == -1) return -1;
-
-    return 0;
+    while (true) {
+        int res = semop(ack_table_sem_id, &op, 1);
+        if(res != -1) return 0;
+        else if(errno == EINTR) continue;
+        else return -1;
+    }
 }
 
 // Global vars are initialized to 0.
