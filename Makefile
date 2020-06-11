@@ -22,21 +22,21 @@ $(OBJDIR):
 	@echo "(missing header $@)"
 
 $(OBJDIR)/server.o: server.c $(KEEP_TRACK)
-	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $< $(LIBS)
 
 $(OBJDIR)/client.o: client.c $(KEEP_TRACK)
-	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $< $(LIBS)
 
 $(OBJDIR)/%.o: %.c %.h $(KEEP_TRACK)
-	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(INCLUDES) -c -o $@ $< $(LIBS)
 
 server: $(SERVER_OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
 	@echo "Server compiled."
 	@echo
 
 client: $(CLIENT_OBJS)
-	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) -o $@ $^
+	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LIBS)
 	@echo "Client compiled."
 	@echo
 
