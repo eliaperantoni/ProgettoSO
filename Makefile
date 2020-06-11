@@ -21,10 +21,10 @@ $(OBJDIR):
 %.h:
 	@echo "(missing header $@)"
 
-$(OBJDIR)/server.o: server.c
+$(OBJDIR)/server.o: server.c $(KEEP_TRACK)
 	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) -c -o $@ $<
 
-$(OBJDIR)/client.o: client.c
+$(OBJDIR)/client.o: client.c $(KEEP_TRACK)
 	$(CC) $(CFLAGS) $(INCLUDES) $(LIBS) -c -o $@ $<
 
 $(OBJDIR)/%.o: %.c %.h $(KEEP_TRACK)
