@@ -25,9 +25,11 @@ typedef struct {
 } pos_t;
 
 int init_board();
+
 int teardown_board();
 
 pid_t board_get(pos_t p);
+
 void board_set(pos_t p, pid_t val);
 
 void display_board();

@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 typedef struct list_handle {
-    struct list_handle* next;
+    struct list_handle *next;
 } list_handle_t;
 
 #define null_list_handle {NULL}

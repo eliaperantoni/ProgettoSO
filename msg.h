@@ -13,4 +13,4 @@ typedef struct {
     list_handle_t list_handle;
 } msg;
 
-int send_msg(msg* m);
+int send_msg(msg *m);

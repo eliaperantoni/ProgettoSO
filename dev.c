@@ -61,7 +61,7 @@ void print_status() {
 }
 
 static void sighandler(int sig) {
-    if(teardown_fifo() == -1)
+    if (teardown_fifo() == -1)
         perror("[DEVICE] Could not teardown FIFO");
 
     list_handle_t *iter;

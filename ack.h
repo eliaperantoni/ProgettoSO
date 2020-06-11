@@ -1,4 +1,5 @@
 #pragma once
+
 #include <unistd.h>
 #include <time.h>
 #include <time.h>
@@ -19,9 +20,11 @@ typedef struct {
 } ack;
 
 int init_ack_table();
+
 int teardown_ack_table();
 
 int lock_ack_table();
+
 int unlock_ack_table();
 
 _Noreturn void ack_manager_loop(int msg_queue_key);

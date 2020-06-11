@@ -18,21 +18,21 @@ struct {
 // Kill children, wait for them to terminate, teardown, and then exit
 void die(int code) {
     for (int i = 0; i < DEV_COUNT; i++)
-        if(kill(pids.devs[i], SIGTERM) == -1)
+        if (kill(pids.devs[i], SIGTERM) == -1)
             perror("[SERVER] Could not kill device");
-    if(kill(pids.ack_manager, SIGTERM) == -1)
+    if (kill(pids.ack_manager, SIGTERM) == -1)
         perror("[SERVER] Could not kill ack manager");
 
     // wait children to terminate
-    while(wait(NULL) != -1);
+    while (wait(NULL) != -1);
 
     // Teardown allocated memory and remove IPCs
-    if(teardown_board() == -1)
+    if (teardown_board() == -1)
         perror("[SERVER] Could not teardown board");
     teardown_steps();
-    if(teardown_mov_semaphores() == -1)
+    if (teardown_mov_semaphores() == -1)
         perror("[SERVER] Could not teardown movement semaphores");
-    if(teardown_ack_table() == -1)
+    if (teardown_ack_table() == -1)
         perror("[SERVER] Could not teardown ack table");
 
     exit(code);
@@ -85,11 +85,11 @@ int main(int argc, char *argv[]) {
 
     for (int step_i = 0; step_i < steps_count; step_i++) {
         printf("## Step %d: device positions ###########\n", step_i);
-        if(perform_step() == -1)
+        if (perform_step() == -1)
             fatal("[SERVER] Performing step");
         printf("#######################################\n\n");
 
-        if(kill(pids.ack_manager, SIGUSR1) == -1)
+        if (kill(pids.ack_manager, SIGUSR1) == -1)
             fatal("[SERVER] Couldn't bumb ACK manager current step");
 
         sleep(2);

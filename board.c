@@ -12,10 +12,10 @@ static pid_t *board_ptr;
 
 int init_board() {
     board_shm_id = shmget(IPC_PRIVATE, BOARD_BYTES, IPC_CREAT | IPC_EXCL | S_IRUSR | S_IWUSR);
-    if(board_shm_id == -1) return -1;
+    if (board_shm_id == -1) return -1;
 
     board_ptr = shmat(board_shm_id, NULL, 0);
-    if(board_ptr == (pid_t*)-1) return -1;
+    if (board_ptr == (pid_t *) -1) return -1;
 
     memset(board_ptr, 0, BOARD_BYTES);
 
@@ -23,9 +23,9 @@ int init_board() {
 }
 
 int teardown_board() {
-    if(board_ptr != NULL && board_ptr != (pid_t*)-1) {
-        if(shmdt(board_ptr) == -1) return -1;
-        if(shmctl(board_shm_id, IPC_RMID, NULL) == -1) return -1;
+    if (board_ptr != NULL && board_ptr != (pid_t *) -1) {
+        if (shmdt(board_ptr) == -1) return -1;
+        if (shmctl(board_shm_id, IPC_RMID, NULL) == -1) return -1;
     }
 
     return 0;

@@ -67,8 +67,8 @@ int lock_ack_table() {
     struct sembuf op = {.sem_num = 0, .sem_op = -1};
     while (true) {
         int res = semop(ack_table_sem_id, &op, 1);
-        if(res != -1) return 0;
-        else if(errno == EINTR) continue;
+        if (res != -1) return 0;
+        else if (errno == EINTR) continue;
         else return -1;
     }
 }
@@ -77,8 +77,8 @@ int unlock_ack_table() {
     struct sembuf op = {.sem_num = 0, .sem_op = +1};
     while (true) {
         int res = semop(ack_table_sem_id, &op, 1);
-        if(res != -1) return 0;
-        else if(errno == EINTR) continue;
+        if (res != -1) return 0;
+        else if (errno == EINTR) continue;
         else return -1;
     }
 }
@@ -148,10 +148,10 @@ static void fatal(char *msg) {
 }
 
 void sighandler(int sig) {
-    if(sig == SIGUSR1)
-     current_step++;
-    else if(sig == SIGTERM) {
-        if(teardown_feedback_queue() == -1)
+    if (sig == SIGUSR1)
+        current_step++;
+    else if (sig == SIGTERM) {
+        if (teardown_feedback_queue() == -1)
             perror("[ACK MANAGER] Could not teardown feedback queue");
 
         exit(0);
@@ -174,7 +174,7 @@ _Noreturn void ack_manager_loop(int msg_queue_key) {
     if (signal(SIGUSR1, sighandler) == SIG_ERR)
         fatal("[ACK MANAGER] Setting SIGUSR1 handler");
 
-    if(init_feedback_queue(msg_queue_key) == -1)
+    if (init_feedback_queue(msg_queue_key) == -1)
         fatal("[ACK MANAGER] Initializing feedback queue");
 
     while (true) {
@@ -196,7 +196,7 @@ _Noreturn void ack_manager_loop(int msg_queue_key) {
         // As soon as we encounter an empty row we can stop scanning.
         for (int row_i = 0; row_i < ACK_TABLE_ROWS && !is_row_free(row_i); row_i++) {
             // Delete zombies when they are too old
-            if(ack_table_ptr[row_i].zombie_at != -1 && current_step - ack_table_ptr[row_i].zombie_at >= 2) {
+            if (ack_table_ptr[row_i].zombie_at != -1 && current_step - ack_table_ptr[row_i].zombie_at >= 2) {
                 memset(ack_table_ptr, 0, sizeof(ack) * DEV_COUNT);
                 row_i += DEV_COUNT - 1;
                 continue;
@@ -214,7 +214,7 @@ _Noreturn void ack_manager_loop(int msg_queue_key) {
                         perror("[ACK MANAGER] WARNING Couldn't send feedback to client");
 
                     // Zombify all ACKs for this message
-                    for(int go_back = 0; go_back < DEV_COUNT; go_back++)
+                    for (int go_back = 0; go_back < DEV_COUNT; go_back++)
                         ack_table_ptr[row_i - go_back].zombie_at = current_step;
                 }
             } else {
@@ -224,7 +224,7 @@ _Noreturn void ack_manager_loop(int msg_queue_key) {
         }
 
         // Unlock semaphore
-        if(unlock_ack_table() == -1)
+        if (unlock_ack_table() == -1)
             fatal("[ACK MANAGER] Releasing ack table mutex");
     }
 }

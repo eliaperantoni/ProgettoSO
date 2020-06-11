@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <time.h>
-#include <string.h>
 
 #include "msg.h"
 #include "ack.h"
@@ -15,9 +14,9 @@ static int comparator(const void *a, const void *b) {
 
 int output_file_fd;
 
-static void fatal(char* msg) {
-    if(output_file_fd != 0 && output_file_fd != -1)
-        if(close(output_file_fd) == -1)
+static void fatal(char *msg) {
+    if (output_file_fd != 0 && output_file_fd != -1)
+        if (close(output_file_fd) == -1)
             perror("[CLIENT] Could not close output file");
     perror(msg);
     exit(1);
@@ -30,7 +29,7 @@ int main(int argc, char *argv[]) {
     }
 
     int queue_id = msgget(atoi(argv[1]), S_IRUSR | S_IWUSR);
-    if(queue_id == -1) fatal("[CLIENT] Opening feedback queue");
+    if (queue_id == -1) fatal("[CLIENT] Opening feedback queue");
 
     msg msg = {
             .pid_sender = getpid(),
@@ -48,10 +47,10 @@ int main(int argc, char *argv[]) {
     printf("MAX DIST: ");
     scanf(" %lf", &msg.max_dist);
 
-    if(send_msg(&msg) == -1) fatal("[CLIENT] Sending message to device FIFO");
+    if (send_msg(&msg) == -1) fatal("[CLIENT] Sending message to device FIFO");
 
     feedback feedback;
-    if(msgrcv(queue_id, &feedback, sizeof(feedback) - sizeof(long), msg.id, 0) == -1)
+    if (msgrcv(queue_id, &feedback, sizeof(feedback) - sizeof(long), msg.id, 0) == -1)
         fatal("[CLIENT] Receiving feedback from ACK manager");
 
     qsort(feedback.acks, DEV_COUNT, sizeof(ack), comparator);
@@ -60,7 +59,7 @@ int main(int argc, char *argv[]) {
     sprintf(output_path, "out_%d.txt", msg.id);
 
     output_file_fd = open(output_path, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-    if(output_file_fd == -1) fatal("[CLIENT] Opening output file");
+    if (output_file_fd == -1) fatal("[CLIENT] Opening output file");
 
     char header[512];
     int char_count = sprintf(header, "Messaggio %d: %s\nLista acknowledgement:\n", msg.id, msg.content);
@@ -76,10 +75,10 @@ int main(int argc, char *argv[]) {
         char row[256];
         char_count = sprintf(row, "%d, %d, %s\n", ack_ptr->pid_sender, ack_ptr->pid_receiver, formatted_time);
 
-        if(write(output_file_fd, row, char_count) < char_count) fatal("[CLIENT] Writing to output file");
+        if (write(output_file_fd, row, char_count) < char_count) fatal("[CLIENT] Writing to output file");
     }
 
-    if(close(output_file_fd) == -1) fatal("[CLIENT] Closing output file");
+    if (close(output_file_fd) == -1) fatal("[CLIENT] Closing output file");
 
     return 0;
 }
